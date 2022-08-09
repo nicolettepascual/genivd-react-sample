@@ -3,11 +3,14 @@ import '../css/index.css';
 
 import genvidOverlayLogo from '../img/genvid_overlay.png';
 
-function VideoOverlay() {
+const VideoOverlay = (props) => {
+    const helpOverlayVisibility = props.showHelpOverlay ? "visible" : "hidden";
+    const genvidOverlayVisibility = props.toggleGenvidOverlay ? "visible" : "hidden";
+
     return (
         <div className="main">
             <div>
-                <div id="help_overlay">
+                <div id="help_overlay" style={{ visibility: helpOverlayVisibility }}>
                     <h2>Tutorial sample help</h2>
                     <p>
                         The tutorial sample application is streamed directly into this
@@ -32,7 +35,7 @@ function VideoOverlay() {
                                 <td>Mute or unmute the stream</td>
                                 <td>Click on cube</td>
                                 <td>Panel highlight and circle brighter</td>
-                                <td>Click ðŸ‘</td>
+                                <td>Click 👍</td>
                                 <td>Change player popularity (heart icon)</td>
                             </tr>
                             <tr>
@@ -112,11 +115,12 @@ function VideoOverlay() {
                     </table>
                 </div>
             </div>
+
             <div className="video-chat">
                 <div className="row">
                     <div className="col-xs-12 col-md-12 col-lg-12">
                         <div id="video_area">
-                            <div id="genvid_overlay" className="invisible_div">
+                            <div id="genvid_overlay" className="invisible_div" style={{ visibility: genvidOverlayVisibility }}>
                                 <div id="video_overlay">
                                     <canvas id="canvas_overlay_3d"></canvas>
                                     <div id="pip_frame"></div>

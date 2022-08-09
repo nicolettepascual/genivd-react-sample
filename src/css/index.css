@@ -221,7 +221,6 @@ footer {
   margin: auto;
   z-index: 1010;
   padding: 2em;
-  visibility: hidden;
 }
 
 #help_overlay h2 {

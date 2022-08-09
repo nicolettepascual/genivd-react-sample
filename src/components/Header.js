@@ -2,7 +2,7 @@ import '../css/App.css';
 import '../css/index.css';
 import genvidOverlayLogo from '../img/genvid_overlay.png';
 
-function Header() {
+const Header = (props) => {
     return (
         <header>
             <div className="container-fluid">
@@ -28,15 +28,16 @@ function Header() {
                     </ul>
                     <ul className="nav navbar-nav navbar-right">
                         <li>
-                            <a title="Show/Hide Genvid overlay" id="genvid_overlay_button" href="/">
+                            <a title="Show/Hide Genvid overlay" id="genvid_overlay_button" onClick={props.toggleGenvidOverlay} href="/">
                                 <img
                                     src={genvidOverlayLogo}
                                     alt="Genvid Overlay"
                                     className="clickable"
+                                    style={{ opacity: props.isGenvidOverlayToggled ? 1 : 0.3 }}
                                 />
                             </a>
                         </li>
-                        <li><a id="help_button" className="clickable" href="/">Help Menu</a></li>
+                        <li><a id="help_button" className="clickable" onClick={props.onHelpActivation} href='/'>Help Menu</a></li>
                     </ul>
                 </div>
             </div>
