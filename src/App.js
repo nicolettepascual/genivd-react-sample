@@ -25,6 +25,11 @@ function App() {
     "./img/highlight_full.png"
   );
 
+  var videoPlayer = null; // genvid video player
+  var videoReady = false;
+  
+  var videoOverlay;
+
   const videoPlayerId = "video_player";
   const fibonacciIterator = new Fibonacci(); // Fibonacci iterator used to implement reconnection logic
   const fiboStartIterator = new Fibonacci(); // Used to implement reconnection in Start function
@@ -91,6 +96,7 @@ function App() {
   useEffect(() => {
     start();
     const canvas3d = document.querySelector("#canvas_overlay_3d");
+    videoOverlay = document.querySelector("#video_overlay");
     initThreeJS(canvas3d);
   }, []);
 
@@ -155,13 +161,75 @@ function App() {
     });
 
     // genvidClient.onDisconnect(() => this.onDisconnectDetected());
-    // genvidClient.onVideoPlayerReady((elem) =>
-    //   onVideoPlayerReady(elem)
-    // );
+    genvidClient.onVideoPlayerReady((elem) =>
+      onVideoPlayerReady(elem)
+    );
 
     genvidClient.start();
   }
   // GENVID - onChannelJoin stop
+
+    // Once the video player is ready, get the other components ready
+  // GENVID - onVideoPlayerReady start
+  function onVideoPlayerReady(videoPlayerElement) {
+    if (videoPlayerElement) {
+      // We have a player
+      // GENVID - init video player start
+
+      // GENVID - onVideoPlayerReady events start
+      videoPlayer = genvidClient.videoPlayer;
+      genvidClient.videoPlayer.addEventListener(
+        genvid.PlayerEvents.PAUSE,
+        () => hideOverlay()
+      );
+      genvidClient.videoPlayer.addEventListener(
+        genvid.PlayerEvents.PLAYING,
+        () => showOverlay()
+      );
+
+      // videoPlayerElement.addEventListener("resize", () => {
+      //   this.onResize();
+      // });
+
+      // GENVID - init video player stop
+
+      // We have to have a mute by default because of the autoplay policy
+      if (!videoPlayer.getMuted()) {
+        // this.toggleMute();
+      }
+      // GENVID - onVideoPlayerReady events stop
+      videoReady = true;
+
+      // this.onResize();
+
+      showOverlay();
+    } else {
+      // GENVID - onVideoPlayerReady no player start
+      // We do not have a player
+      hideOverlay();
+
+      videoReady = false;
+
+      videoPlayer = null;
+      // GENVID - onVideoPlayerReady no player stop
+    }
+  }
+  // GENVID - onVideoPlayerReady stop
+
+    // GENVID - Genvid show overlay start
+  // Changes the style to display the Genvid overlay
+  function showOverlay() {
+    const genvidOverlay = document.querySelector("#genvid_overlay");
+    genvidOverlay.style.display = "block";
+  }
+  // GENVID - Genvid show overlay stop
+
+  // GENVID - Genvid hide overlay start
+  // Changes the style to hide the Genvid overlay
+  function hideOverlay() {
+    const genvidOverlay = document.querySelector("#genvid_overlay");
+    genvidOverlay.style.display = "none";
+  }
 
   // GENVID - onStreamsReceived start
   // Upon receving the stream, gets the data
@@ -410,9 +478,6 @@ function App() {
   // GENVID - onCheer start
   // Upon cheering a player
   function onCheer(cubeName) {
-    console.log("onCheer", {
-      chube: cubeName,
-    });
     genvidClient.sendEventObject({
       cheer: cubeName,
     });
@@ -516,7 +581,7 @@ function App() {
 
     const volumeDisplay = document.querySelector("#volume_display");
 
-    // this.videoOverlay.style.display = "block";
+    videoOverlay.style.display = "block";
 
     // update the overlays to adapt to the composition of the video stream:
     updateOverlays(
@@ -539,10 +604,10 @@ function App() {
     // Then we use the selectedSessionId to retrieve the game data.
     let selectedSession = frameSource.sessions[selectedSessionId];
     if (selectedSession && Object.keys(selectedSession.streams).length > 0) {
-      // this.videoOverlay.style.display = "block";
+      videoOverlay.style.display = "block";
       updateStreamsInfoFromSession(selectedSession);
     } else {
-      // this.videoOverlay.style.display = "none";
+      videoOverlay.style.display = "none";
     }
 
     // GENVID - onNewFrame video ready start

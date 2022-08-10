@@ -1,5 +1,6 @@
 import '../css/App.css';
 import '../css/index.css';
+import '../css/icons.css';
 
 import genvidOverlayLogo from '../img/genvid_overlay.png';
 
