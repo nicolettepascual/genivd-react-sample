@@ -150,7 +150,6 @@ const VideoOverlay = (props) => {
                                     <span id="counter">Message</span>
                                 </div>
                             </div>
-                            {/* this will contain the video stream */}
                             <div id="video_player"></div>
                             <div className="row nopadding gameControlsDiv">
                                 <div

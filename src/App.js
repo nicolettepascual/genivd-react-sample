@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import * as genvid from "./genvid.es5.js";
 
@@ -41,9 +41,22 @@ function App() {
   const videoPlayerId = "video_player";
   const fibonacciIterator = new Fibonacci(); // Fibonacci iterator used to implement reconnection logic
   const fiboStartIterator = new Fibonacci(); // Used to implement reconnection in Start function
+  const tableColor = [
+    ["green", "green"],
+    ["white", "white"],
+    ["yellow", "yellow"],
+    ["darkblue", "dark blue"],
+    ["grey", "gray"],
+    ["lightblue", "light blue"],
+    ["orange", "orange"],
+    ["blue", "blue"],
+    ["purple", "purple"],
+  ];
 
-  let colorSwitchMap = new Map();
-  let cubeNames = [];
+  var colorSwitchMap = new Map();
+  var cubeNames = [];
+  var cubePanelDiv = [];
+  var panels = [];
 
   // GENVID - onHelpActivation start
   // Displays or removes the help overlay
@@ -85,15 +98,16 @@ function App() {
       })
       .catch((error) => genvid.error(`Can't get the stream info: ${error}`));
   }
-  start();
+
+  useEffect(() => {
+    start();
+  }, []);
 
   // GENVID - onChannelJoin start
   // Creates the genvid Client and the functions listening to it
   function onChannelJoin(joinRep) {
     genvid.getConfig().framePerSeconds = 30; // Defines the rate at which onDraw is called (default being 30).
-    console.log("onChannelJoin", {
-      joinRep: joinRep,
-    });
+
     let genvidClient = genvid.createGenvidClient(
       joinRep.info,
       joinRep.uri,
@@ -132,9 +146,6 @@ function App() {
     const annotationIdToFormat = {
       Colors: "JSON",
     };
-    console.log("--------- dataStreams", {
-      streams: dataStreams.streams,
-    });
 
     for (let stream of dataStreams.streams) {
       // Using switch...case because different operations can be made depending on the stream ID.
@@ -147,9 +158,6 @@ function App() {
             } catch (e) {
               genvid.log("Impossible to parse JSON:", frame.data);
             }
-            console.log("--------- STREAM ID", {
-              id: stream.id,
-            });
             switch (stream.id) {
               case "Names":
                 initPlayerTable(frame.user.name);
@@ -188,62 +196,62 @@ function App() {
 
   // GENVID - initPlayerTable start
   // Method used to display the appropriate number of players with their proper buttons
-  function initPlayerTable(cubeNames) {
+  function initPlayerTable(localCubeNames) {
     console.log("initPlayerTable", {
-      cubeNames: cubeNames
+      cubeNames: localCubeNames
     });
-    // const cubePanel = document.getElementById("cube_panel_prototype");
+    const cubePanel = document.getElementById("cube_panel_prototype");
 
     // The prototype panel gets removed after init.
-    // if (cubePanel === null) {
-    //   // We already have real pannels. No need for more.
-    //   return;
-    // }
+    if (cubePanel === null) {
+      // We already have real pannels. No need for more.
+      return;
+    }
 
-    // this.cubeNames = cubeNames;
+    cubeNames = localCubeNames;
 
-    // for (const idx in cubeNames) {
-    //   const name = this.cubeNames[idx];
-    //   let cubePanelClone = cubePanel.cloneNode(true);
-    //   cubePanelClone.id = idx;
-    //   cubePanelClone.getElementsByClassName("cube_name")[0].innerText = name;
+    for (const idx in localCubeNames) {
+      const name = cubeNames[idx];
+      let cubePanelClone = cubePanel.cloneNode(true);
+      cubePanelClone.id = idx;
+      cubePanelClone.getElementsByClassName("cube_name")[0].innerText = name;
 
-    //   let cheerButton = cubePanelClone.querySelector(".cheer");
-    //   cheerButton.addEventListener("click", () => this.onCheer(name), false);
+      let cheerButton = cubePanelClone.querySelector(".cheer");
+      cheerButton.addEventListener("click", () => this.onCheer(name), false);
 
-    //   let cubeDiv = cubePanelClone.querySelector(".cube");
-    //   cubeDiv.addEventListener(
-    //     "click",
-    //     () => this.selectCube(parseInt(idx)),
-    //     false
-    //   );
-    //   this.cubePanelDiv.push(cubeDiv); // will stop triggering initPlayerTable from onNewFrame() indefinitely
+      let cubeDiv = cubePanelClone.querySelector(".cube");
+      cubeDiv.addEventListener(
+        "click",
+        () => this.selectCube(parseInt(idx)),
+        false
+      );
+      cubePanelDiv.push(cubeDiv); // will stop triggering initPlayerTable from onNewFrame() indefinitely
 
-    //   let resetButton = cubePanelClone.querySelector(".reset");
-    //   resetButton.addEventListener("click", () => this.onReset(name), false);
+      let resetButton = cubePanelClone.querySelector(".reset");
+      resetButton.addEventListener("click", () => this.onReset(name), false);
 
-    //   for (let colorSelect of this.tableColor) {
-    //     let colorButton = cubePanelClone.querySelector("." + colorSelect[0]);
-    //     colorButton.addEventListener(
-    //       "click",
-    //       () => this.onColorChange(name, colorSelect[1]),
-    //       false
-    //     );
-    //   }
-    //   document.querySelector(".gameControlsDiv").append(cubePanelClone);
+      for (let colorSelect of tableColor) {
+        let colorButton = cubePanelClone.querySelector("." + colorSelect[0]);
+        colorButton.addEventListener(
+          "click",
+          () => this.onColorChange(name, colorSelect[1]),
+          false
+        );
+      }
+      document.querySelector(".gameControlsDiv").append(cubePanelClone);
 
-    //   const panel = {
-    //     panel: cubePanelClone,
-    //     x: cubePanelClone.getElementsByClassName("position_x")[0],
-    //     y: cubePanelClone.getElementsByClassName("position_y")[0],
-    //     z: cubePanelClone.getElementsByClassName("position_z")[0],
-    //     popularity: cubePanelClone.getElementsByClassName("cheer_value")[0],
-    //   };
-    //   this.panels.push(panel);
-    // }
+      const panel = {
+        panel: cubePanelClone,
+        x: cubePanelClone.getElementsByClassName("position_x")[0],
+        y: cubePanelClone.getElementsByClassName("position_y")[0],
+        z: cubePanelClone.getElementsByClassName("position_z")[0],
+        popularity: cubePanelClone.getElementsByClassName("cheer_value")[0],
+      };
+      panels.push(panel);
+    }
 
     // We don't need the prototype panel anymore. We now have real panels.
-    // cubePanel.remove();
+    cubePanel.remove();
   }
   // GENVID - initPlayerTable stop
 
