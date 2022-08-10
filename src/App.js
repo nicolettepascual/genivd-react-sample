@@ -52,6 +52,9 @@ function App() {
   var tags = [];
   var popularities = [];
 
+  var showNotificationTimeoutID = 0;
+  var showNotificationDurationMS = 3000;
+
   var volumeInfoDisplayCount = 100; // number of frames that volume info stays on screen
   var volumeInfoDisplayUntil = 100; // number of frames for wich we want the volume info to stay visible
 
@@ -147,9 +150,9 @@ function App() {
     );
 
     genvidClient.onDraw((frame) => onNewFrame(frame));
-    // genvidClient.onNotificationsReceived((notifications) => {
-    //   onNotificationsReceived(notifications);
-    // });
+    genvidClient.onNotificationsReceived((notifications) => {
+      onNotificationsReceived(notifications);
+    });
 
     // genvidClient.onDisconnect(() => this.onDisconnectDetected());
     // genvidClient.onVideoPlayerReady((elem) =>
@@ -205,7 +208,7 @@ function App() {
       }
     }
     for (let annotation of dataStreams.annotations) {
-      if (annotationIdToFormat[annotation.id] == "JSON") {
+      if (annotationIdToFormat[annotation.id] === "JSON") {
         for (let frame of annotation.frames) {
           try {
             frame.user = JSON.parse(frame.data);
@@ -608,7 +611,7 @@ function App() {
     // Do we have multiple sources?
     if (compositionData && compositionData.length > 1) {
       // Assuming the second element to be the foreground frame.
-      if (compositionData[1].type == "PipVideoLayout") {
+      if (compositionData[1].type === "PipVideoLayout") {
         // Prevent the 3d overlay to overlay the secondary screen
         // Note that if the PiP source is configured to occupy 100% of the screen
         // the whole overlay will be cropped, thus invisible!
@@ -628,6 +631,30 @@ function App() {
     }
   }
   // GENVID - updateOverlays stop
+
+  // GENVID - onNotificationsReceived start
+  /** Upon receiving a notification, gets the notification content */
+  function onNotificationsReceived(message) {
+    for (let notification of message.notifications) {
+      if (notification.id === "POPULARITY") {
+        let data = JSON.parse(notification.data);
+        popularities = data.popularity;
+      } else { // Don't spam popularity.
+        genvid.log("notification received: ", notification.data);
+        document.querySelector("#alert_notification").style.visibility = "visible";
+        document.querySelector("#notification_message").textContent = notification.data;
+        if (showNotificationTimeoutID !== 0) {
+          clearTimeout(showNotificationTimeoutID);
+        }
+        showNotificationTimeoutID = setTimeout(() => {
+          document.querySelector("#alert_notification").style.visibility = "hidden";
+          showNotificationTimeoutID = 0
+        },
+          showNotificationDurationMS);
+      }
+    }
+  }
+  // GENVID - onNotificationsReceived stop
 
   // GENVID - msToDuration start
   // Method used to convert ms to specific duration
@@ -661,7 +688,7 @@ function App() {
       }
       if (session.streams["Colors"]) {
         // Update the circle colors if they're new.
-        if (cubeColors != session.streams["Colors"].user.color) {
+        if (cubeColors !== session.streams["Colors"].user.color) {
           cubeColors = session.streams["Colors"].user.color;
           setCubeColors();
         }
