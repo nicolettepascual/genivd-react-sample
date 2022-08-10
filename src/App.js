@@ -228,13 +228,13 @@ function App() {
       cubePanelDiv.push(cubeDiv); // will stop triggering initPlayerTable from onNewFrame() indefinitely
 
       let resetButton = cubePanelClone.querySelector(".reset");
-      resetButton.addEventListener("click", () => this.onReset(name), false);
+      resetButton.addEventListener("click", () => onReset(name), false);
 
       for (let colorSelect of tableColor) {
         let colorButton = cubePanelClone.querySelector("." + colorSelect[0]);
         colorButton.addEventListener(
           "click",
-          () => this.onColorChange(name, colorSelect[1]),
+          () => onColorChange(name, colorSelect[1]),
           false
         );
       }
@@ -294,6 +294,26 @@ function App() {
 
     selectedCubeId = index;
   }
+
+  // GENVID - onReset start
+  // Resets the position of the cube
+  function onReset(cubeName) {
+    genvidClient.sendEventObject({
+      reset: cubeName,
+    });
+  }
+  // GENVID - onReset stop
+
+  // GENVID - onColorChange start
+  // Method used when clicking on a color to change the color of a cube
+  function onColorChange(cube, color) {
+    let evt = {
+      key: ["changeColor", cube],
+      value: color,
+    };
+    genvidClient.sendEvent([evt]);
+  }
+  // GENVID - onColorChange stop
 
   // ---------------------------------------------------------Enter frame section---------------------------------------------------------
   // GENVID - onNewFrame start
