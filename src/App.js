@@ -57,6 +57,9 @@ function App() {
   var cubeNames = [];
   var cubePanelDiv = [];
   var panels = [];
+  var cubes = [];
+
+  var selectedCubeId = -1; // cube name selected
 
   // GENVID - onHelpActivation start
   // Displays or removes the help overlay
@@ -108,7 +111,7 @@ function App() {
   function onChannelJoin(joinRep) {
     genvid.getConfig().framePerSeconds = 30; // Defines the rate at which onDraw is called (default being 30).
 
-    let genvidClient = genvid.createGenvidClient(
+    genvidClient = genvid.createGenvidClient(
       joinRep.info,
       joinRep.uri,
       joinRep.token,
@@ -197,9 +200,6 @@ function App() {
   // GENVID - initPlayerTable start
   // Method used to display the appropriate number of players with their proper buttons
   function initPlayerTable(localCubeNames) {
-    console.log("initPlayerTable", {
-      cubeNames: localCubeNames
-    });
     const cubePanel = document.getElementById("cube_panel_prototype");
 
     // The prototype panel gets removed after init.
@@ -217,12 +217,12 @@ function App() {
       cubePanelClone.getElementsByClassName("cube_name")[0].innerText = name;
 
       let cheerButton = cubePanelClone.querySelector(".cheer");
-      cheerButton.addEventListener("click", () => this.onCheer(name), false);
+      cheerButton.addEventListener("click", () => onCheer(name), false);
 
       let cubeDiv = cubePanelClone.querySelector(".cube");
       cubeDiv.addEventListener(
         "click",
-        () => this.selectCube(parseInt(idx)),
+        () => selectCube(parseInt(idx)),
         false
       );
       cubePanelDiv.push(cubeDiv); // will stop triggering initPlayerTable from onNewFrame() indefinitely
@@ -264,12 +264,42 @@ function App() {
       }
     }
   }
+  
+  // GENVID - onCheer start
+  // Upon cheering a player
+  function onCheer(cubeName) {
+    console.log("onCheer", {
+      chube: cubeName,
+    });
+    genvidClient.sendEventObject({
+      cheer: cubeName,
+    });
+  }
+  // GENVID - onCheer stop
+
+  function selectCube(index) {
+    // webGL overlay selection feedback
+    for (let idx = 0; idx < cubes.length; idx++) {
+      cubes[idx].material.opacity = idx === index ? 1 : 0.5;
+    }
+
+    // DOM panel selection feedback
+    for (const panel of panels) {
+      panel.panel.style.backgroundColor = "#181818";
+    }
+
+    if (index >= 0) {
+      panels[index].panel.style.backgroundColor = "#32324e";
+    }
+
+    selectedCubeId = index;
+  }
 
   // ---------------------------------------------------------Enter frame section---------------------------------------------------------
   // GENVID - onNewFrame start
   // function onNewFrame(frameSource) {
   //   // this.videoOverlay.style.display = "block";
-  //   console.log("");
+
   //   // update the overlays to adapt to the composition of the video stream:
   //   updateOverlays(
   //     frameSource.compositionData
