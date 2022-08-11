@@ -13,6 +13,9 @@ import Header from './components/Header.js';
 import Footer from './components/Footer.js';
 import VideoOverlay from './components/VideoOverlay';
 
+import highlightFull from './img/highlight_full.png';
+import highlightFullPa from './img/highlight_full_pa.png';
+
 function App() {
   const [appState, setAppState] = useState({
     showHelpOverlay: false,
@@ -72,10 +75,10 @@ function App() {
 
   var spriteScale = 4;
   const spriteIdleTexture = new THREE.TextureLoader().load(
-    "./img/highlight_full.png"
+    highlightFull
   );
   const spriteSelectedTexture = new THREE.TextureLoader().load(
-    "./img/highlight_full_pa.png"
+    highlightFullPa
   );
   var raycaster = new THREE.Raycaster();
   var mouse = new THREE.Vector2();
@@ -543,7 +546,7 @@ function App() {
         this.increaseVolume();
         break;
       case "KeyH":
-        this.onHelpActivation();
+        onHelpActivation(event);
         break;
     }
   }
