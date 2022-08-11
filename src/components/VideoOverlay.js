@@ -122,8 +122,8 @@ const VideoOverlay = (props) => {
                     <div className="col-xs-12 col-md-12 col-lg-12">
                         <div id="video_area">
                             <div id="genvid_overlay" className="invisible_div" style={{ visibility: genvidOverlayVisibility }}>
-                                <div id="video_overlay">
-                                    <canvas id="canvas_overlay_3d"></canvas>
+                                <div id="video_overlay" style={{ height: '80%', width: '62%', display: 'block', left: '310px', top: '0px' }}>
+                                    <canvas id="canvas_overlay_3d" style={{ height: '100%', width: '100%'}}></canvas>
                                     <div id="pip_frame"></div>
                                     <div id="mouse_overlay" onClick={(e) => props.clickScene(e)}>
                                         <div id="mute-button">

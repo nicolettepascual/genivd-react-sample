@@ -83,9 +83,16 @@ function App() {
 
 
   useEffect(() => {
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        onKeyDown(event);
+      },
+      true
+    );
     start();
     const canvas3d = document.querySelector("#canvas_overlay_3d");
-    videoOverlay = document.getElementById("#video_overlay");
+    videoOverlay = document.querySelector("#video_overlay");
     initThreeJS(canvas3d);
   }, []);
 
@@ -197,6 +204,11 @@ function App() {
     // videoOverlay = document.getElementById("#video_overlay");
     // videoOverlay.style.display = "block";
 
+    // console.log("onDraw", {
+    //   frame: 
+    //   frameSource,
+    // });
+
     // update the overlays to adapt to the composition of the video stream:
     updateOverlays(
       frameSource.compositionData
@@ -290,6 +302,11 @@ function App() {
     const annotationIdToFormat = {
       Colors: "JSON",
     };
+
+    // console.log("onStreamsReceived", {
+    //   dataStreams: 
+    //   dataStreams,
+    // });
 
     for (let stream of dataStreams.streams) {
       // Using switch...case because different operations can be made depending on the stream ID.
@@ -486,6 +503,114 @@ function App() {
   }
 
   // ---------------------------------------------------------User Interactions---------------------------------------------------------
+  function onKeyDown(event) {
+    // Seems to be the most cross-platform way to determine keys:
+    // Ref: https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code
+    let code = event.code || getKeyCode(event);
+    switch (code) {
+      case "Equal":
+      case "NumpadAdd":
+        changeDelayOffset(+1, event);
+        break;
+      case "Minus":
+      case "NumpadSubtract":
+        changeDelayOffset(-1, event);
+        break;
+      case "NumpadMultiply":
+        changeDelayOffset(0, event);
+        break;
+      case "KeyG":
+        toggleGenvidOverlay();
+        break;
+      case "KeyF":
+        toggleFullScreen();
+        break;
+      case "Space":
+        if (genvidClient.videoPlayer.isPaused()) {
+          genvidClient.videoPlayer.play();
+        } else {
+          genvidClient.videoPlayer.pause();
+        }
+        event.preventDefault();
+        break;
+      case "KeyM":
+        this.toggleMute();
+        break;
+      case "KeyZ":
+        this.decreaseVolume();
+        break;
+      case "KeyX":
+        this.increaseVolume();
+        break;
+      case "KeyH":
+        this.onHelpActivation();
+        break;
+    }
+  }
+
+  /** Compatibility code for browsers (Safari) not having KeyboardEvent.code. */
+  function getKeyCode(event) {
+    if (event.keyCode) {
+      if (65 <= event.keyCode && event.keyCode <= 90) {
+        return "Key" + String.fromCharCode(event.keyCode);
+      } else {
+        switch (event.keyCode) {
+          case 13:
+            return "Enter";
+          case 106:
+            return "NumpadMultiply";
+          case 107:
+            return "NumpadAdd";
+          case 109:
+            return "NumpadSubtract";
+          case 110:
+            return "NumpadDecimal";
+          case 111:
+            return "NumpadDivide";
+          case 187:
+            return "Equal";
+          case 188:
+            return "Comma";
+          case 189:
+            return "Minus";
+          case 190:
+            return "Period";
+          case 222:
+            return "Backquote";
+        }
+      }
+    }
+  }
+
+  function toggleFullScreen() {
+    if (checkFullScreen()) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+      // fullScreenIcon.classList.remove("fa-compress");
+      // fullScreenIcon.classList.add("fa-expand");
+    } else {
+      let element = document.querySelector("#video_area");
+      if (element.requestFullscreen) {
+        element.requestFullscreen();
+      } else if (element.mozRequestFullScreen) {
+        element.mozRequestFullScreen();
+      } else if (element.webkitRequestFullscreen) {
+        element.webkitRequestFullscreen();
+      } else if (element.msRequestFullscreen) {
+        element.msRequestFullscreen();
+      }
+      // fullScreenIcon.classList.remove("fa-expand");
+      // fullScreenIcon.classList.add("fa-compress");
+    }
+  }
+
   /** Changes the style to display the Genvid overlay */
   function showOverlay() {
     const genvidOverlay = document.querySelector("#genvid_overlay");
@@ -559,7 +684,6 @@ function App() {
     genvidClient.sendEvent([evt]);
   }
 
-
   // ---------------------------------------------------------Utility methods section---------------------------------------------------------
   /** Converts popularity value to popularity text */
   function popularityToText(popularity) {
@@ -621,6 +745,15 @@ function App() {
     })}:${preN(date.getMilliseconds().toFixed(0), 3, "0")}`;
   }
 
+  function checkFullScreen() {
+    return (
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+  }
+
   // GENVID - updateOverlays start
   function updateOverlays(compositionData) {
     let hideOverlay = false;
@@ -651,7 +784,6 @@ function App() {
       if (canvas3d) canvas3d.style.removeProperty("clip-path");
     }
   }
- 
 
   // ---------------------------------------------------------Other Functions---------------------------------------------------------
   function initThreeJS(canvas) {
@@ -803,6 +935,18 @@ function App() {
     colorCounterMessageDiv.style.visibility = "visible";
     let messageSpan = document.querySelector("#counter");
     messageSpan.innerHTML = message;
+  }
+
+  /** Function that changes the delay offset depending of the key pressed */
+  function changeDelayOffset(direction, event) {
+    if (direction !== 0) {
+      let delayDelta = 100 * direction;
+      if (event.altKey) delayDelta *= 10;
+      if (event.shiftKey) delayDelta /= 3;
+      genvidClient.delayOffset += delayDelta;
+    } else {
+      genvidClient.delayOffset = 0;
+    }
   }
 
   return (
