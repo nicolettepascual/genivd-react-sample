@@ -125,7 +125,7 @@ const VideoOverlay = (props) => {
                                 <div id="video_overlay">
                                     <canvas id="canvas_overlay_3d"></canvas>
                                     <div id="pip_frame"></div>
-                                    <div id="mouse_overlay">
+                                    <div id="mouse_overlay" onClick={(e) => props.clickScene(e)}>
                                         <div id="mute-button">
                                             <i className="fa fa-lg" aria-hidden="true"></i>
                                         </div>

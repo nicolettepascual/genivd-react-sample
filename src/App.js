@@ -21,13 +21,9 @@ function App() {
 
   var genvidClient;
 
-  const spriteIdleTexture = new THREE.TextureLoader().load(
-    "./img/highlight_full.png"
-  );
-
   var videoPlayer = null; // genvid video player
   var videoReady = false;
-  
+
   var videoOverlay;
 
   const videoPlayerId = "video_player";
@@ -44,8 +40,6 @@ function App() {
     ["blue", "blue"],
     ["purple", "purple"],
   ];
-
-  var tagPosition = new THREE.Vector3();
 
   var colorSwitchMap = new Map();
   var cubeNames = [];
@@ -67,39 +61,35 @@ function App() {
   var lastRenderTimeS = -1;
 
   var cameraData;
-  var scene;
-  var camera;
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    1000
+  );
   var renderer;
 
-  // GENVID - onHelpActivation start
-  // Displays or removes the help overlay
-  const onHelpActivation = (e) => {
-    e.preventDefault();
-    setAppState(prevState => ({
-      ...prevState,
-      showHelpOverlay: !prevState.showHelpOverlay,
-    }));
-  };
-  // GENVID - onHelpActivation stop
+  var spriteScale = 4;
+  const spriteIdleTexture = new THREE.TextureLoader().load(
+    "./img/highlight_full.png"
+  );
+  const spriteSelectedTexture = new THREE.TextureLoader().load(
+    "./img/highlight_full_pa.png"
+  );
+  var raycaster = new THREE.Raycaster();
+  var mouse = new THREE.Vector2();
+  var tagPosition = new THREE.Vector3();
 
-  // GENVID - toggleGenvidOverlay start
-  // Displays or removes the Genvid Overlay
-  const toggleGenvidOverlay = (e) => {
-    e.preventDefault();
-    setAppState(prevState => ({
-      ...prevState,
-      toggleGenvidOverlay: !prevState.toggleGenvidOverlay,
-    }));
-  }
-  // GENVID - toggleGenvidOverlay stop
 
   useEffect(() => {
     start();
     const canvas3d = document.querySelector("#canvas_overlay_3d");
-    videoOverlay = document.querySelector("#video_overlay");
+    videoOverlay = document.getElementById("#video_overlay");
     initThreeJS(canvas3d);
   }, []);
 
+  // ---------------------------------------------------------Genvid Client Initialization---------------------------------------------------------
   const start = () => {
     fetch("http://[::1]:30000/api/public/channels/join", {
       method: "POST",
@@ -119,28 +109,7 @@ function App() {
       .catch((error) => genvid.error(`Can't get the stream info: ${error}`));
   }
 
-  function initThreeJS(canvas) {
-    scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
-    if (cameraData) {
-      updateCamera();
-    }
-    renderer = new THREE.WebGLRenderer({
-      canvas,
-      alpha: true, // so that clear color is transparent
-      powerPreference: "high-performance",
-    });
-    render();
-  }
-
-
-  // GENVID - onChannelJoin start
-  // Creates the genvid Client and the functions listening to it
+  /** Creates the genvid Client and the functions listening to it */
   function onChannelJoin(joinRep) {
     genvid.getConfig().framePerSeconds = 30; // Defines the rate at which onDraw is called (default being 30).
 
@@ -167,10 +136,8 @@ function App() {
 
     genvidClient.start();
   }
-  // GENVID - onChannelJoin stop
 
-    // Once the video player is ready, get the other components ready
-  // GENVID - onVideoPlayerReady start
+  /** Once the video player is ready, get the other components ready */
   function onVideoPlayerReady(videoPlayerElement) {
     if (videoPlayerElement) {
       // We have a player
@@ -214,25 +181,104 @@ function App() {
       // GENVID - onVideoPlayerReady no player stop
     }
   }
-  // GENVID - onVideoPlayerReady stop
 
-    // GENVID - Genvid show overlay start
-  // Changes the style to display the Genvid overlay
-  function showOverlay() {
-    const genvidOverlay = document.querySelector("#genvid_overlay");
-    genvidOverlay.style.display = "block";
+  // ---------------------------------------------------------Enter frame section---------------------------------------------------------
+  function onNewFrame(frameSource) {
+    // Debug overlay
+    const timeLocalDiv = document.querySelector("#time_local"); // browser clock current time
+    const timeVideoDiv = document.querySelector("#time_video"); // video player current time
+    const timeComposeLastDiv = document.querySelector("#time_compose_last");
+    const timeStreamDiv = document.querySelector("#time_stream");
+    const latencyDiv = document.querySelector("#latency");
+    const delayOffsetDiv = document.querySelector("#delay_offset");
+
+    const volumeDisplay = document.querySelector("#volume_display");
+
+    // videoOverlay = document.getElementById("#video_overlay");
+    // videoOverlay.style.display = "block";
+
+    // update the overlays to adapt to the composition of the video stream:
+    updateOverlays(
+      frameSource.compositionData
+    );
+
+    // initialize selectedSessionId to the first valid value we can find
+    let selectedSessionId = Object.keys(frameSource.sessions)[0];
+    if (frameSource.compositionData[0]) {
+      // Get the background session ID from the composition data.
+      // If picture in picture or chroma key composition is activated,
+      // index 0 is the background source, index 1 is the foreground.
+      // If single source composition is enabled, the first element
+      // will be the main source used.
+      // For the purpose of this sample we will always choose the data
+      // associated to the background:
+      selectedSessionId = frameSource.compositionData[0].sessionId;
+    }
+
+    // Then we use the selectedSessionId to retrieve the game data.
+    let selectedSession = frameSource.sessions[selectedSessionId];
+    if (selectedSession && Object.keys(selectedSession.streams).length > 0) {
+      // videoOverlay.style.display = "block";
+      updateStreamsInfoFromSession(selectedSession);
+    } else {
+      // videoOverlay.style.display = "none";
+    }
+
+    // GENVID - onNewFrame video ready start
+    // Updates the Genvid information overlay
+    let width = 18; // Width of the content of every line (without label).
+    timeLocalDiv.textContent = `Local: ${preN(
+      msToDuration(Date.now()),
+      width,
+      " "
+    )}`;
+
+    timeVideoDiv.textContent = `Est. Video: ${preN(
+      msToDuration(Math.round(genvidClient.videoTimeMS)),
+      width,
+      " "
+    )}`;
+
+    timeComposeLastDiv.textContent = `Stream received: ${preN(
+      msToDuration(Math.round(genvidClient.lastComposeTimeMS)),
+      width,
+      " "
+    )}`;
+
+    timeStreamDiv.textContent = `Stream played: ${preN(
+      msToDuration(Math.round(genvidClient.streamTimeMS)),
+      width,
+      " "
+    )}`;
+
+    latencyDiv.textContent = `Latency: ${preN(
+      genvidClient.streamLatencyMS.toFixed(0),
+      width - 3,
+      " "
+    )} ms`;
+
+    delayOffsetDiv.textContent = `DelayOffset: ${preN(
+      genvidClient.delayOffset.toFixed(0),
+      width - 3,
+      " "
+    )} ms`;
+
+    // Updates the visibility on the overlay when using key press
+    if (
+      volumeDisplay.style.visibility === "visible" &&
+      volumeInfoDisplayCount < volumeInfoDisplayUntil
+    ) {
+      volumeInfoDisplayCount++;
+    } else if (
+      volumeDisplay.style.visibility === "visible" &&
+      volumeInfoDisplayCount >= volumeInfoDisplayUntil
+    ) {
+      volumeDisplay.style.visibility = "hidden";
+    }
+    // GENVID - onNewFrame video ready stop
   }
-  // GENVID - Genvid show overlay stop
 
-  // GENVID - Genvid hide overlay start
-  // Changes the style to hide the Genvid overlay
-  function hideOverlay() {
-    const genvidOverlay = document.querySelector("#genvid_overlay");
-    genvidOverlay.style.display = "none";
-  }
-
-  // GENVID - onStreamsReceived start
-  // Upon receving the stream, gets the data
+  /** Upon receving the stream, gets the data */
   function onStreamsReceived(dataStreams) {
     const streamIdToFormat = {
       Copyright: "UTF8",
@@ -290,10 +336,8 @@ function App() {
       }
     }
   }
-  // GENVID - onStreamsReceived stop
 
-  // GENVID - initPlayerTable start
-  // Method used to display the appropriate number of players with their proper buttons
+  /** Method used to display the appropriate number of players with their proper buttons */
   function initPlayerTable(localCubeNames) {
     const cubePanel = document.getElementById("cube_panel_prototype");
 
@@ -348,47 +392,26 @@ function App() {
     // We don't need the prototype panel anymore. We now have real panels.
     cubePanel.remove();
   }
-  // GENVID - initPlayerTable stop
 
-  function setDelaysForUpcomingColorSwitches(newSwitches) {
-    for (let i = 0; i < newSwitches.length; ++i) {
-      if (newSwitches[i]) {
-        let delayToColorSwitchS = genvidClient.streamLatencyMS / 1000;
-        // Override or add the delay to the color switch for the cube.
-        colorSwitchMap[cubeNames[i]] = delayToColorSwitchS;
-      }
-    }
-  }
-
-  function updateCubeColorSwitchMessages(deltaTimeS) {
-    let colorChangeMessage = "";
-    // Lets see if we have any cubes awaiting a color change.
-    for (let cubeName of cubeNames) {
-      if (colorSwitchMap[cubeName]) {
-        // This cube is awaiting a color change.
-        // Update the delay to the color change.
-        colorSwitchMap[cubeName] -= deltaTimeS;
-        if (colorSwitchMap[cubeName] > 0) {
-          // Update the UI.
-          let delay = Number.parseFloat(colorSwitchMap[cubeName]).toPrecision(2);
-          colorChangeMessage = colorChangeMessage.concat(cubeName + " will change color in " + delay + " seconds." + '<br>');
+  /** Upon receiving a notification, gets the notification content */
+  function onNotificationsReceived(message) {
+    for (let notification of message.notifications) {
+      if (notification.id === "POPULARITY") {
+        let data = JSON.parse(notification.data);
+        popularities = data.popularity;
+      } else { // Don't spam popularity.
+        genvid.log("notification received: ", notification.data);
+        document.querySelector("#alert_notification").style.visibility = "visible";
+        document.querySelector("#notification_message").textContent = notification.data;
+        if (showNotificationTimeoutID !== 0) {
+          clearTimeout(showNotificationTimeoutID);
         }
-        else {
-          // This entry is no longer needed once the counter is done.
-          colorSwitchMap.delete(cubeName);
-        }
+        showNotificationTimeoutID = setTimeout(() => {
+          document.querySelector("#alert_notification").style.visibility = "hidden";
+          showNotificationTimeoutID = 0
+        },
+          showNotificationDurationMS);
       }
-    }
-    // Do we have anything to display?
-    if (colorChangeMessage !== "") {
-      // Activate and override the UI color change message.
-      displayColorCounterMessage(colorChangeMessage);
-    } else {
-      // No. Hide the UI element.
-      let colorCounterMessageDiv = document.querySelector(
-        "#alert_color_counter"
-      );
-      colorCounterMessageDiv.style.visibility = "hidden";
     }
   }
 
@@ -462,57 +485,72 @@ function App() {
     requestAnimationFrame(render.bind(this));
   }
 
-  function updateCamera() {
-    if (camera) {
-      camera.fov = THREE.MathUtils.radToDeg(cameraData.fov);
-      camera.near = cameraData.near;
-      camera.far = cameraData.far;
-      camera.aspect = cameraData.aspect;
-      camera.updateProjectionMatrix();
-      camera.position.set(...cameraData.eye);
-      camera.up.set(...cameraData.up);
-      camera.lookAt(...cameraData.at);
-    }
+  // ---------------------------------------------------------User Interactions---------------------------------------------------------
+  /** Changes the style to display the Genvid overlay */
+  function showOverlay() {
+    const genvidOverlay = document.querySelector("#genvid_overlay");
+    genvidOverlay.style.display = "block";
   }
 
-  // GENVID - onCheer start
-  // Upon cheering a player
+  /** Changes the style to hide the Genvid overlay */
+  function hideOverlay() {
+    const genvidOverlay = document.querySelector("#genvid_overlay");
+    genvidOverlay.style.display = "none";
+  }
+
+  /** clickCube - Method used when clicking on the WebGL overlay */
+  function clickScene(event) {
+    const rect = event.target.getBoundingClientRect();
+
+    console.log("clickScene", {
+      rect: rect
+    });
+
+    // this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    // this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    // this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    // const pickedObjects = this.raycaster.intersectObjects(this.scene.children);
+
+    // if (pickedObjects.length) {
+    //   this.selectCube(parseInt(pickedObjects[0].object.name));
+    // } else {
+    //   this.selectCube(-1);
+    // }
+  }
+
+  const toggleGenvidOverlay = (e) => {
+    e.preventDefault();
+    setAppState(prevState => ({
+      ...prevState,
+      toggleGenvidOverlay: !prevState.toggleGenvidOverlay,
+    }));
+  }
+
+  const onHelpActivation = (e) => {
+    e.preventDefault();
+    setAppState(prevState => ({
+      ...prevState,
+      showHelpOverlay: !prevState.showHelpOverlay,
+    }));
+  };
+
+  /** Upon cheering a player */
   function onCheer(cubeName) {
     genvidClient.sendEventObject({
       cheer: cubeName,
     });
   }
-  // GENVID - onCheer stop
 
-  function selectCube(index) {
-    // webGL overlay selection feedback
-    for (let idx = 0; idx < cubes.length; idx++) {
-      cubes[idx].material.opacity = idx === index ? 1 : 0.5;
-    }
-
-    // DOM panel selection feedback
-    for (const panel of panels) {
-      panel.panel.style.backgroundColor = "#181818";
-    }
-
-    if (index >= 0) {
-      panels[index].panel.style.backgroundColor = "#32324e";
-    }
-
-    selectedCubeId = index;
-  }
-
-  // GENVID - onReset start
-  // Resets the position of the cube
+  /** Resets the position of the cube */
   function onReset(cubeName) {
     genvidClient.sendEventObject({
       reset: cubeName,
     });
   }
-  // GENVID - onReset stop
 
-  // GENVID - onColorChange start
-  // Method used when clicking on a color to change the color of a cube
+  /** Method used when clicking on a color to change the color of a cube */
   function onColorChange(cube, color) {
     let evt = {
       key: ["changeColor", cube],
@@ -520,11 +558,10 @@ function App() {
     };
     genvidClient.sendEvent([evt]);
   }
-  // GENVID - onColorChange stop
+
 
   // ---------------------------------------------------------Utility methods section---------------------------------------------------------
-  // GENVID - popularityToText start
-  // Converts popularity value to popularity text
+  /** Converts popularity value to popularity text */
   function popularityToText(popularity) {
     const hearts = ["💔", "♡", "♥", "💕"];
     const levels = [0.1, 1.0, 5.0];
@@ -535,10 +572,7 @@ function App() {
     }
     return hearts[levels.length];
   }
-  // GENVID - popularityToText stop
-
-  // GENVID - centerAt start
-  // Changes the HTML element position to be at the center of the pos 2d sent
+  /** Changes the HTML element position to be at the center of the pos 2d sent */
   function centerAt(htmlElement, pos2d, offsetPixels) {
     // Converts from [-1, 1] range to [0, 1].
     let vh = genvidMath.vec2(0.5, 0.5);
@@ -566,104 +600,26 @@ function App() {
       zIndex: "1100",
     });
   }
-  // GENVID - centerAt stop
 
-  // ---------------------------------------------------------Enter frame section---------------------------------------------------------
-  // GENVID - onNewFrame start
-  function onNewFrame(frameSource) {
-    // Debug overlay
-    const timeLocalDiv = document.querySelector("#time_local"); // browser clock current time
-    const timeVideoDiv = document.querySelector("#time_video"); // video player current time
-    const timeComposeLastDiv = document.querySelector("#time_compose_last");
-    const timeStreamDiv = document.querySelector("#time_stream");
-    const latencyDiv = document.querySelector("#latency");
-    const delayOffsetDiv = document.querySelector("#delay_offset");
-
-    const volumeDisplay = document.querySelector("#volume_display");
-
-    videoOverlay.style.display = "block";
-
-    // update the overlays to adapt to the composition of the video stream:
-    updateOverlays(
-      frameSource.compositionData
-    );
-
-    // initialize selectedSessionId to the first valid value we can find
-    let selectedSessionId = Object.keys(frameSource.sessions)[0];
-    if (frameSource.compositionData[0]) {
-      // Get the background session ID from the composition data.
-      // If picture in picture or chroma key composition is activated,
-      // index 0 is the background source, index 1 is the foreground.
-      // If single source composition is enabled, the first element
-      // will be the main source used.
-      // For the purpose of this sample we will always choose the data
-      // associated to the background:
-      selectedSessionId = frameSource.compositionData[0].sessionId;
+  /** Widens a string to at least n characters, prefixing with spaces. */
+  function preN(str, n, c) {
+    let s = str.length;
+    if (s < n) {
+      str = c.repeat(n - s) + str;
     }
-
-    // Then we use the selectedSessionId to retrieve the game data.
-    let selectedSession = frameSource.sessions[selectedSessionId];
-    if (selectedSession && Object.keys(selectedSession.streams).length > 0) {
-      videoOverlay.style.display = "block";
-      updateStreamsInfoFromSession(selectedSession);
-    } else {
-      videoOverlay.style.display = "none";
-    }
-
-    // GENVID - onNewFrame video ready start
-    // Updates the Genvid information overlay
-    let width = 18; // Width of the content of every line (without label).
-    timeLocalDiv.textContent = `Local: ${preN(
-      msToDuration(Date.now()),
-      width,
-      " "
-    )}`;
-
-    timeVideoDiv.textContent = `Est. Video: ${preN(
-      msToDuration(Math.round(genvidClient.videoTimeMS)),
-      width,
-      " "
-    )}`;
-
-    timeComposeLastDiv.textContent = `Stream received: ${preN(
-      msToDuration(Math.round(genvidClient.lastComposeTimeMS)),
-      width,
-      " "
-    )}`;
-
-    timeStreamDiv.textContent = `Stream played: ${preN(
-      msToDuration(Math.round(genvidClient.streamTimeMS)),
-      width,
-      " "
-    )}`;
-
-    latencyDiv.textContent = `Latency: ${preN(
-      genvidClient.streamLatencyMS.toFixed(0),
-      width - 3,
-      " "
-    )} ms`;
-
-    delayOffsetDiv.textContent = `DelayOffset: ${preN(
-      genvidClient.delayOffset.toFixed(0),
-      width - 3,
-      " "
-    )} ms`;
-
-    // Updates the visibility on the overlay when using key press
-    if (
-      volumeDisplay.style.visibility === "visible" &&
-      volumeInfoDisplayCount < volumeInfoDisplayUntil
-    ) {
-      volumeInfoDisplayCount++;
-    } else if (
-      volumeDisplay.style.visibility === "visible" &&
-      volumeInfoDisplayCount >= volumeInfoDisplayUntil
-    ) {
-      volumeDisplay.style.visibility = "hidden";
-    }
-    // GENVID - onNewFrame video ready stop
+    return str;
   }
-  // GENVID - onNewFrame stop
+
+  /** Method used to convert ms to specific duration */
+  function msToDuration(duration) {
+    const msInADay = 1000 * 60 * 60 * 24;
+    const date = new Date(duration);
+    const days = (duration - (duration % msInADay)) / msInADay;
+    return `${days ? `${days}:` : ""}${date.toLocaleTimeString(undefined, {
+      hour12: false,
+      timeZone: "GMT",
+    })}:${preN(date.getMilliseconds().toFixed(0), 3, "0")}`;
+  }
 
   // GENVID - updateOverlays start
   function updateOverlays(compositionData) {
@@ -695,56 +651,93 @@ function App() {
       if (canvas3d) canvas3d.style.removeProperty("clip-path");
     }
   }
-  // GENVID - updateOverlays stop
+ 
 
-  // GENVID - onNotificationsReceived start
-  /** Upon receiving a notification, gets the notification content */
-  function onNotificationsReceived(message) {
-    for (let notification of message.notifications) {
-      if (notification.id === "POPULARITY") {
-        let data = JSON.parse(notification.data);
-        popularities = data.popularity;
-      } else { // Don't spam popularity.
-        genvid.log("notification received: ", notification.data);
-        document.querySelector("#alert_notification").style.visibility = "visible";
-        document.querySelector("#notification_message").textContent = notification.data;
-        if (showNotificationTimeoutID !== 0) {
-          clearTimeout(showNotificationTimeoutID);
-        }
-        showNotificationTimeoutID = setTimeout(() => {
-          document.querySelector("#alert_notification").style.visibility = "hidden";
-          showNotificationTimeoutID = 0
-        },
-          showNotificationDurationMS);
+  // ---------------------------------------------------------Other Functions---------------------------------------------------------
+  function initThreeJS(canvas) {
+    if (cameraData) {
+      updateCamera();
+    }
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true, // so that clear color is transparent
+      powerPreference: "high-performance",
+    });
+    render();
+  }
+
+  function setDelaysForUpcomingColorSwitches(newSwitches) {
+    for (let i = 0; i < newSwitches.length; ++i) {
+      if (newSwitches[i]) {
+        let delayToColorSwitchS = genvidClient.streamLatencyMS / 1000;
+        // Override or add the delay to the color switch for the cube.
+        colorSwitchMap[cubeNames[i]] = delayToColorSwitchS;
       }
     }
   }
-  // GENVID - onNotificationsReceived stop
 
-  // GENVID - msToDuration start
-  // Method used to convert ms to specific duration
-  function msToDuration(duration) {
-    const msInADay = 1000 * 60 * 60 * 24;
-    const date = new Date(duration);
-    const days = (duration - (duration % msInADay)) / msInADay;
-    return `${days ? `${days}:` : ""}${date.toLocaleTimeString(undefined, {
-      hour12: false,
-      timeZone: "GMT",
-    })}:${preN(date.getMilliseconds().toFixed(0), 3, "0")}`;
-  }
-  // GENVID - msToDuration stop
-
-  // GENVID - preN start
-  /** Widens a string to at least n characters, prefixing with spaces. */
-  function preN(str, n, c) {
-    let s = str.length;
-    if (s < n) {
-      str = c.repeat(n - s) + str;
+  function updateCubeColorSwitchMessages(deltaTimeS) {
+    let colorChangeMessage = "";
+    // Lets see if we have any cubes awaiting a color change.
+    for (let cubeName of cubeNames) {
+      if (colorSwitchMap[cubeName]) {
+        // This cube is awaiting a color change.
+        // Update the delay to the color change.
+        colorSwitchMap[cubeName] -= deltaTimeS;
+        if (colorSwitchMap[cubeName] > 0) {
+          // Update the UI.
+          let delay = Number.parseFloat(colorSwitchMap[cubeName]).toPrecision(2);
+          colorChangeMessage = colorChangeMessage.concat(cubeName + " will change color in " + delay + " seconds." + '<br>');
+        }
+        else {
+          // This entry is no longer needed once the counter is done.
+          colorSwitchMap.delete(cubeName);
+        }
+      }
     }
-    return str;
+    // Do we have anything to display?
+    if (colorChangeMessage !== "") {
+      // Activate and override the UI color change message.
+      displayColorCounterMessage(colorChangeMessage);
+    } else {
+      // No. Hide the UI element.
+      let colorCounterMessageDiv = document.querySelector(
+        "#alert_color_counter"
+      );
+      colorCounterMessageDiv.style.visibility = "hidden";
+    }
   }
-  // GENVID - preN stop
 
+  function updateCamera() {
+    if (camera) {
+      camera.fov = THREE.MathUtils.radToDeg(cameraData.fov);
+      camera.near = cameraData.near;
+      camera.far = cameraData.far;
+      camera.aspect = cameraData.aspect;
+      camera.updateProjectionMatrix();
+      camera.position.set(...cameraData.eye);
+      camera.up.set(...cameraData.up);
+      camera.lookAt(...cameraData.at);
+    }
+  }
+
+  function selectCube(index) {
+    // webGL overlay selection feedback
+    for (let idx = 0; idx < cubes.length; idx++) {
+      cubes[idx].material.opacity = idx === index ? 1 : 0.5;
+    }
+
+    // DOM panel selection feedback
+    for (const panel of panels) {
+      panel.panel.style.backgroundColor = "#181818";
+    }
+
+    if (index >= 0) {
+      panels[index].panel.style.backgroundColor = "#32324e";
+    }
+
+    selectedCubeId = index;
+  }
 
   function updateStreamsInfoFromSession(session) {
     if (session) {
@@ -765,7 +758,6 @@ function App() {
     }
   }
 
-  // GENVID - updateDomRect start
   function updateDomRect(targetDom, referenceDom, mat) {
     // get the canvas rect
     const domQuad = genvidMath.Path2.makeQuad(0, 0, 1, 1);
@@ -779,9 +771,7 @@ function App() {
     targetDom.style.width = `${bbox.width}px`;
     targetDom.style.height = `${bbox.height}px`;
   }
-  // GENVID - updateDomRect stop
 
-  // GENVID - updateDomClipping start
   function updateDomClipping(dom, mat) {
     // get the canvas rect
     const domQuad = genvidMath.Path2.makeQuad(0, 0, 1, 1);
@@ -792,7 +782,6 @@ function App() {
     domQuad.scale(dom.width, dom.height);
     dom.style.clipPath = domQuad.toCssPath();
   }
-  // GENVID - updateDomClipping stop
 
   function setCubeColors() {
     for (let i = 0; i < cubeColors.length; ++i) {
@@ -820,7 +809,7 @@ function App() {
     <>
       <div className="wrap">
         <Header onHelpActivation={onHelpActivation} toggleGenvidOverlay={toggleGenvidOverlay} isGenvidOverlayToggled={appState.toggleGenvidOverlay} />
-        <VideoOverlay showHelpOverlay={appState.showHelpOverlay} toggleGenvidOverlay={appState.toggleGenvidOverlay} />
+        <VideoOverlay showHelpOverlay={appState.showHelpOverlay} toggleGenvidOverlay={appState.toggleGenvidOverlay} clickScene={clickScene} />
       </div>
       <Footer />
     </>
