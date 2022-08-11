@@ -627,22 +627,18 @@ function App() {
   function clickScene(event) {
     const rect = event.target.getBoundingClientRect();
 
-    console.log("clickScene", {
-      rect: rect
-    });
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-    // this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    // this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
 
-    // this.raycaster.setFromCamera(this.mouse, this.camera);
+    const pickedObjects = raycaster.intersectObjects(scene.children);
 
-    // const pickedObjects = this.raycaster.intersectObjects(this.scene.children);
-
-    // if (pickedObjects.length) {
-    //   this.selectCube(parseInt(pickedObjects[0].object.name));
-    // } else {
-    //   this.selectCube(-1);
-    // }
+    if (pickedObjects.length) {
+      selectCube(parseInt(pickedObjects[0].object.name));
+    } else {
+      selectCube(-1);
+    }
   }
 
   const toggleGenvidOverlay = (e) => {
