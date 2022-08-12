@@ -8,6 +8,7 @@ import './css/App.css';
 import './css/index.css';
 
 import Fibonacci from "./utils/fibonacci.js";
+import { videoOverlayDefaultStyle, videoOverlayFullscreentStyle } from "./utils/constants.js";
 
 import Header from './components/Header.js';
 import Footer from './components/Footer.js';
@@ -84,6 +85,8 @@ function App() {
   var mouse = new THREE.Vector2();
   var tagPosition = new THREE.Vector3();
 
+  var fullScreenIcon;
+
 
   useEffect(() => {
     window.addEventListener(
@@ -96,6 +99,7 @@ function App() {
     start();
     const canvas3d = document.querySelector("#canvas_overlay_3d");
     videoOverlay = document.querySelector("#video_overlay");
+    fullScreenIcon = document.querySelector(".fa-expand");
     initThreeJS(canvas3d);
   }, []);
 
@@ -203,14 +207,6 @@ function App() {
     const delayOffsetDiv = document.querySelector("#delay_offset");
 
     const volumeDisplay = document.querySelector("#volume_display");
-
-    // videoOverlay = document.getElementById("#video_overlay");
-    // videoOverlay.style.display = "block";
-
-    // console.log("onDraw", {
-    //   frame: 
-    //   frameSource,
-    // });
 
     // update the overlays to adapt to the composition of the video stream:
     updateOverlays(
@@ -596,8 +592,12 @@ function App() {
       } else if (document.msExitFullscreen) {
         document.msExitFullscreen();
       }
-      // fullScreenIcon.classList.remove("fa-compress");
-      // fullScreenIcon.classList.add("fa-expand");
+      fullScreenIcon.classList.remove("fa-compress");
+      fullScreenIcon.classList.add("fa-expand");
+
+      videoOverlay.style.width = videoOverlayDefaultStyle.width;
+      videoOverlay.style.height = videoOverlayDefaultStyle.height;
+      videoOverlay.style.left = videoOverlayDefaultStyle.left;
     } else {
       let element = document.querySelector("#video_area");
       if (element.requestFullscreen) {
@@ -609,8 +609,12 @@ function App() {
       } else if (element.msRequestFullscreen) {
         element.msRequestFullscreen();
       }
-      // fullScreenIcon.classList.remove("fa-expand");
-      // fullScreenIcon.classList.add("fa-compress");
+      fullScreenIcon.classList.remove("fa-expand");
+      fullScreenIcon.classList.add("fa-compress");
+
+      videoOverlay.style.width = videoOverlayFullscreentStyle.width;
+      videoOverlay.style.height = videoOverlayFullscreentStyle.height;
+      videoOverlay.style.left = videoOverlayFullscreentStyle.left;
     }
   }
 
@@ -951,8 +955,17 @@ function App() {
   return (
     <>
       <div className="wrap">
-        <Header onHelpActivation={onHelpActivation} toggleGenvidOverlay={toggleGenvidOverlay} isGenvidOverlayToggled={appState.toggleGenvidOverlay} />
-        <VideoOverlay showHelpOverlay={appState.showHelpOverlay} toggleGenvidOverlay={appState.toggleGenvidOverlay} clickScene={clickScene} />
+        <Header
+          onHelpActivation={onHelpActivation}
+          toggleGenvidOverlay={toggleGenvidOverlay}
+          isGenvidOverlayToggled={appState.toggleGenvidOverlay}
+        />
+        <VideoOverlay
+          showHelpOverlay={appState.showHelpOverlay}
+          toggleGenvidOverlay={appState.toggleGenvidOverlay}
+          clickScene={clickScene}
+          toggleFullScreen={toggleFullScreen}
+        />
       </div>
       <Footer />
     </>

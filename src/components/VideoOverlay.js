@@ -4,6 +4,9 @@ import '../css/icons.css';
 
 import genvidOverlayLogo from '../img/genvid_overlay.png';
 
+
+import { videoOverlayDefaultStyle } from "../utils/constants.js";
+
 const VideoOverlay = (props) => {
     const helpOverlayVisibility = props.showHelpOverlay ? "visible" : "hidden";
     const genvidOverlayVisibility = props.toggleGenvidOverlay ? "visible" : "hidden";
@@ -122,14 +125,14 @@ const VideoOverlay = (props) => {
                     <div className="col-xs-12 col-md-12 col-lg-12">
                         <div id="video_area">
                             <div id="genvid_overlay" className="invisible_div" style={{ visibility: genvidOverlayVisibility }}>
-                                <div id="video_overlay" style={{ height: '80%', width: '67%', display: 'block', left: '310px', top: '0px' }}>
-                                    <canvas id="canvas_overlay_3d" style={{ height: '100%', width: '100%'}}></canvas>
+                                <div id="video_overlay" style={{ height: videoOverlayDefaultStyle.height, width: videoOverlayDefaultStyle.width, display: 'block', left: videoOverlayDefaultStyle.left, top: '0px' }}>
+                                    <canvas id="canvas_overlay_3d" style={{ height: '100%', width: '100%' }}></canvas>
                                     <div id="pip_frame"></div>
                                     <div id="mouse_overlay" onClick={(e) => props.clickScene(e)}>
                                         <div id="mute-button">
                                             <i className="fa fa-lg" aria-hidden="true"></i>
                                         </div>
-                                        <div className="fullscreen-button">
+                                        <div className="fullscreen-button" onClick={() => props.toggleFullScreen()}>
                                             <i className="fa fa-expand fa-lg" aria-hidden="true"></i>
                                         </div>
                                     </div>
