@@ -9,6 +9,7 @@ import './css/index.css';
 
 import Fibonacci from "./utils/fibonacci.js";
 import { videoOverlayDefaultStyle, videoOverlayFullscreentStyle } from "./utils/constants.js";
+import { popularityToText, centerAt, preN, msToDuration, checkFullScreen } from "./utils/utilFunctions";
 
 import Header from './components/Header.js';
 import Footer from './components/Footer.js';
@@ -145,7 +146,7 @@ function App() {
       onNotificationsReceived(notifications);
     });
 
-    // genvidClient.onDisconnect(() => this.onDisconnectDetected());
+    genvidClient.onDisconnect(() => onDisconnectDetected());
     genvidClient.onVideoPlayerReady((elem) =>
       onVideoPlayerReady(elem)
     );
@@ -304,11 +305,6 @@ function App() {
       Colors: "JSON",
     };
 
-    // console.log("onStreamsReceived", {
-    //   dataStreams: 
-    //   dataStreams,
-    // });
-
     for (let stream of dataStreams.streams) {
       // Using switch...case because different operations can be made depending on the stream ID.
       switch (streamIdToFormat[stream.id]) {
@@ -431,6 +427,26 @@ function App() {
           showNotificationDurationMS);
       }
     }
+  }
+
+  function   onDisconnectDetected() {
+    genvid.info("Disconnected");
+    fetch("/api/public/channels/join", {
+      method: "POST",
+    })
+      .then((data) => data.json())
+      .then((res) => {
+        genvidClient.reconnect(res.info, res.uri, res.token);
+        fibonacciIterator.reset();
+      })
+      .catch(() => {
+        genvid.info(
+          `Will reconnect in ${fibonacciIterator.get()} seconds`
+        );
+        return sleep(getNewSleepDuration()).then(() =>
+          onDisconnectDetected()
+        );
+      });
   }
 
   function render() {
@@ -725,76 +741,6 @@ function App() {
     genvidClient.sendEvent([evt]);
   }
 
-  // ---------------------------------------------------------Utility methods section---------------------------------------------------------
-  /** Converts popularity value to popularity text */
-  function popularityToText(popularity) {
-    const hearts = ["💔", "♡", "♥", "💕"];
-    const levels = [0.1, 1.0, 5.0];
-    for (let i = 0; i < hearts.length; ++i) {
-      if (popularity < levels[i]) {
-        return hearts[i];
-      }
-    }
-    return hearts[levels.length];
-  }
-  /** Changes the HTML element position to be at the center of the pos 2d sent */
-  function centerAt(htmlElement, pos2d, offsetPixels) {
-    // Converts from [-1, 1] range to [0, 1].
-    let vh = genvidMath.vec2(0.5, 0.5);
-    let pos2dN = genvidMath.mad2D(pos2d, vh, vh);
-
-    // Converts from [0, 1] range to [0, w].
-    let p = htmlElement.parentElement;
-    let pSize = genvidMath.vec2(p.clientWidth, p.clientHeight);
-    let posInParent = genvidMath.mul2D(pos2dN, pSize);
-
-    // Adjusts for centering element.
-    let eSize = genvidMath.vec2(
-      htmlElement.clientWidth,
-      htmlElement.clientHeight
-    );
-    let eOffset = genvidMath.muls2D(eSize, -0.5);
-    let posCentered = genvidMath.add2D(posInParent, eOffset);
-
-    // Applies user offset.
-    const posFinal = genvidMath.sub2D(posCentered, offsetPixels);
-    Object.assign(htmlElement.style, {
-      left: posFinal.x + "px",
-      bottom: posFinal.y + "px",
-      position: "absolute",
-      zIndex: "1100",
-    });
-  }
-
-  /** Widens a string to at least n characters, prefixing with spaces. */
-  function preN(str, n, c) {
-    let s = str.length;
-    if (s < n) {
-      str = c.repeat(n - s) + str;
-    }
-    return str;
-  }
-
-  /** Method used to convert ms to specific duration */
-  function msToDuration(duration) {
-    const msInADay = 1000 * 60 * 60 * 24;
-    const date = new Date(duration);
-    const days = (duration - (duration % msInADay)) / msInADay;
-    return `${days ? `${days}:` : ""}${date.toLocaleTimeString(undefined, {
-      hour12: false,
-      timeZone: "GMT",
-    })}:${preN(date.getMilliseconds().toFixed(0), 3, "0")}`;
-  }
-
-  function checkFullScreen() {
-    return (
-      document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.mozFullScreenElement ||
-      document.msFullscreenElement
-    );
-  }
-
   // GENVID - updateOverlays start
   function updateOverlays(compositionData) {
     let hideOverlay = false;
@@ -988,6 +934,16 @@ function App() {
     } else {
       genvidClient.delayOffset = 0;
     }
+  }
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function getNewSleepDuration() {
+    // We return the delay to wait in ms wich will follow the Fibonacci algorithm.
+    // We also added +/-10% of fuzziness
+    return fibonacciIterator.next() * (Math.random() * 0.2 + 0.9) * 1000;
   }
 
   return (
