@@ -521,7 +521,7 @@ function App() {
         changeDelayOffset(0, event);
         break;
       case "KeyG":
-        toggleGenvidOverlay();
+        toggleGenvidOverlay(event);
         break;
       case "KeyF":
         toggleFullScreen();
