@@ -1,6 +1,6 @@
 export const videoOverlayDefaultStyle = {
     width: '67%',
-    height: '80%',
+    height: '82%',
     left: '310px',
 }
 

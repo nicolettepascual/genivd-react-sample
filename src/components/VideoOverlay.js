@@ -129,7 +129,7 @@ const VideoOverlay = (props) => {
                                     <canvas id="canvas_overlay_3d" style={{ height: '100%', width: '100%' }}></canvas>
                                     <div id="pip_frame"></div>
                                     <div id="mouse_overlay" onClick={(e) => props.clickScene(e)}>
-                                        <div id="mute-button">
+                                        <div id="mute-button" onClick={() => props.toggleMute()}>
                                             <i className="fa fa-lg" aria-hidden="true"></i>
                                         </div>
                                         <div className="fullscreen-button" onClick={() => props.toggleFullScreen()}>

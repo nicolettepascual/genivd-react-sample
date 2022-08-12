@@ -86,6 +86,7 @@ function App() {
   var tagPosition = new THREE.Vector3();
 
   var fullScreenIcon;
+  var volumeDisplay;
 
 
   useEffect(() => {
@@ -100,6 +101,7 @@ function App() {
     const canvas3d = document.querySelector("#canvas_overlay_3d");
     videoOverlay = document.querySelector("#video_overlay");
     fullScreenIcon = document.querySelector(".fa-expand");
+    volumeDisplay = document.querySelector("#volume_display");
     initThreeJS(canvas3d);
   }, []);
 
@@ -174,9 +176,9 @@ function App() {
 
       // GENVID - init video player stop
 
-      // We have to have a mute by default because of the autoplay policy
+      /** We have to have a mute by default because of the autoplay policy */
       if (!videoPlayer.getMuted()) {
-        // this.toggleMute();
+        toggleMute();
       }
       // GENVID - onVideoPlayerReady events stop
       videoReady = true;
@@ -533,13 +535,13 @@ function App() {
         event.preventDefault();
         break;
       case "KeyM":
-        this.toggleMute();
+        toggleMute();
         break;
       case "KeyZ":
-        this.decreaseVolume();
+        decreaseVolume();
         break;
       case "KeyX":
-        this.increaseVolume();
+        increaseVolume();
         break;
       case "KeyH":
         onHelpActivation(event);
@@ -617,6 +619,42 @@ function App() {
       videoOverlay.style.left = videoOverlayFullscreentStyle.left;
     }
   }
+
+  function decreaseVolume() {
+    const newVolume = genvidClient.videoPlayer.getVolume() - 20;
+    genvidClient.videoPlayer.setVolume(newVolume);
+    volumeDisplay.style.visibility = "visible";
+    volumeInfoDisplayCount = 0;
+    volumeDisplay.textContent = `Volume: ${genvidClient.videoPlayer.getVolume()} %`;
+  }
+
+  function increaseVolume() {
+    const newVolume = genvidClient.videoPlayer.getVolume() + 20;
+    genvidClient.videoPlayer.setVolume(newVolume);
+    volumeDisplay.style.visibility = "visible";
+    volumeInfoDisplayCount = 0;
+    volumeDisplay.textContent = `Volume: ${genvidClient.videoPlayer.getVolume()} %`;
+  }
+
+  /** Depending on the status, mutes or unmutes the video player audio */
+  function toggleMute() {
+      const muteIcon = document.querySelector("#mute-button i");
+      if (genvidClient.videoPlayer.getMuted()) {
+        muteIcon.classList.remove("fa-volume-off");
+        muteIcon.classList.add("fa-volume-up");
+        genvidClient.videoPlayer.setMuted(false);
+        volumeDisplay.style.visibility = "visible";
+        volumeDisplay.textContent = "Volume is unmuted";
+        volumeInfoDisplayCount = 0;
+      } else {
+        muteIcon.classList.remove("fa-volume-up");
+        muteIcon.classList.add("fa-volume-off");
+        genvidClient.videoPlayer.setMuted(true);
+        volumeDisplay.style.visibility = "visible";
+        volumeDisplay.textContent = "Volume is muted";
+        volumeInfoDisplayCount = 0;
+      }
+    }
 
   /** Changes the style to display the Genvid overlay */
   function showOverlay() {
@@ -965,6 +1003,7 @@ function App() {
           toggleGenvidOverlay={appState.toggleGenvidOverlay}
           clickScene={clickScene}
           toggleFullScreen={toggleFullScreen}
+          toggleMute={toggleMute}
         />
       </div>
       <Footer />
